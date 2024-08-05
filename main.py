@@ -1,115 +1,65 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-from pandas.tools.plotting import scatter_matrix
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import KFold
-import os
-print(os.listdir("../input"))
-import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set()
-import warnings
-warnings.filterwarnings('ignore')
-eye_data = pd.read_csv(r"../input/eye movement.csv")
-eye_data.info()
-eye_data.head()
-fig,ax = plt.subplots(nrows = 4, ncols=4, figsize=(16,10))
-row = 0
-col = 0
-for i in range(len(eye_data.columns) -1):
-    if col > 3:
-        row += 1
-        col = 0
-    axes = ax[row,col]
-    sns.boxplot(x = eye_data['Target'], y = eye_data[eye_data.columns[i]],ax = axes)
-    col += 1
-plt.tight_layout()
-# plt.title("Individual Features by Class")
-plt.show()
-p = eye_data.hist(figsize = (20,20),bins=50)
-color_wheel = {1: "#0392cf", 
-               2: "#7bc043"}
-colors = eye_data["Target"].map(lambda x: color_wheel.get(x + 1))
-p = eye_data.Target.value_counts().plot(kind="bar")
-plt.xlabel("Target")
-plt.ylabel("Count of Target")
-X = eye_data.drop(['Target'],axis=1)
-y = eye_data.Target
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.33, random_state=20,shuffle=True)
-test_scores = []
-train_scores = []
-for i in range(1,15):
+pip install opencv-python
+Dlib: Install Dlib using pip:
+bash
+Copy code
+pip install dlib
+Numpy: A package for numerical computing, often used alongside OpenCV:
+bash
+Copy code
+pip install numpy
+Code Implementation:
+Here's a basic example to get started with eye detection using OpenCV and Dlib:
+
+Import necessary libraries:
+
+python
+Copy code
+import cv2
+import dlib
+import numpy as np
+Initialize Dlib's face detector and facial landmark predictor:
+
+python
+Copy code
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+Capture video from the webcam:
+
+python
+Copy code
+cap = cv2.VideoCapture(0)
+Define a function to extract eye regions:
+
+python
+Copy code
+def get_eye_region(shape):
+    left_eye = shape[36:42]
+    right_eye = shape[42:48]
+    return left_eye, right_eye
+Main loop to process each frame:
+
+python
+Copy code
+while True:
+    ret, frame = cap.read()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
-    knn = KNeighborsClassifier(i,weights="distance")
+    faces = detector(gray)
+    for face in faces:
+        shape = predictor(gray, face)
+        shape = np.array([[p.x, p.y] for p in shape.parts()])
+        
+        left_eye, right_eye = get_eye_region(shape)
+        
+        # Draw eye regions
+        cv2.polylines(frame, [left_eye], isClosed=True, color=(0, 255, 0), thickness=2)
+        cv2.polylines(frame, [right_eye], isClosed=True, color=(0, 255, 0), thickness=2)
     
-    knn.fit(X_train,y_train)
+    cv2.imshow("Frame", frame)
     
-    test_scores.append(knn.score(X_test,y_test))
-    train_scores.append(knn.score(X_train,y_train))
-  
-max_train_score = max(train_scores)
-train_scores_ind = [i for i, v in enumerate(train_scores) if v == max_train_score]
-print('Max train score {} % and k = {}'.format(max_train_score*100,list(map(lambda x: x+1, train_scores_ind))))
-Max train score 100.0 % and k = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    key = cv2.waitKey(1)
+    if key == 27:
+        break
 
-max_test_score = max(test_scores)
-test_scores_ind = [i for i, v in enumerate(test_scores) if v == max_test_score]
-print('Max test score {} % and k = {}'.format(max_test_score*100,list(map(lambda x: x+1, test_scores_ind))))
-Max test score 97.83576051779936 % and k = [4]
-plt.figure(figsize=(12,5))
-p = sns.lineplot(range(1,15),train_scores,marker='*',label='Train Score')
-p = sns.lineplot(range(1,15),test_scores,marker='o',label='Test Score')
-
-from numpy import mean
-from numpy import std
-from numpy import delete
-from numpy import savetxt
-
-data = eye_data
-values = data.values
-
-for i in range(values.shape[1] - 1):
-
-	data_mean, data_std = mean(values[:,i]), std(values[:,i])
-
-	cut_off = data_std * 4
-	lower, upper = data_mean - cut_off, data_mean + cut_off
-
-	too_small = [j for j in range(values.shape[0]) if values[j,i] < lower]
-	values = delete(values, too_small, 0)
-	print('>deleted %d rows' % len(too_small))
-
-	too_large = [j for j in range(values.shape[0]) if values[j,i] > upper]
-	values = delete(values, too_large, 0)
-	print('>deleted %d rows' % len(too_large))
-
-savetxt('eye_movement_no_outliers.csv', values, delimiter=',')
-eye_data_no_out = pd.read_csv('eye_movement_no_outliers.csv',names = eye_data.columns )
-eye_data_no_out.plot(kind='box')
-<matplotlib.axes._subplots.AxesSubplot at 0x7fc65649f550>
-eye_data_no_out.describe()
-X = eye_data_no_out.drop(['Target'],axis=1)
-y = eye_data_no_out.Target
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.33, random_state=20,shuffle=True)
-from sklearn.neighbors import KNeighborsClassifier
-test_scores = []
-train_scores = []
-for i in range(1,7):
-knn = KNeighborsClassifier(i)
-    knn.fit(X_train,y_train)
-    train_scores.append(knn.score(X_train,y_train))
-    test_scores.append(knn.score(X_test,y_test))
-## score that comes from testing on the same datapoints that were used for training
-max_train_score = max(train_scores)
-train_scores_ind = [i for i, v in enumerate(train_scores) if v == max_train_score]
-print('Max train score {} % and k = {}'.format(max_train_score*100,list(map(lambda x: x+1, train_scores_ind))))
-Max train score 100.0 % and k = [1]
-## score that comes from testing on the datapoints that were split in the beginning to be used for testing solely
-max_test_score = max(test_scores)
-test_scores_ind = [i for i, v in enumerate(test_scores) if v == max_test_score]
-print('Max test score {} % and k = {}'.format(max_test_score*100,list(map(lambda x: x+1, test_scores_ind))))
-Max test score 97.11925439525524 % and k = [1]
-plt.figure(figsize=(12,5))
-p = sns.lineplot(range(1,7),train_scores,marker='*',label='Train Score')
-p = sns.lineplot(range(1,7),test_scores,marker='o',label='Test Score')
+cap.release()
+cv2.destroyAllWindows()
